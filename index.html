@@ -1,0 +1,670 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>VIT Bhopal Attendance Planner</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap">
+<style>:root{color-scheme:light}body{margin:0}[hidden]{display:none!important}</style>
+<style>
+/* Layout: one column workspace, three tabs (Planner, Calendar, Quick calculator); wide tables scroll inside their own box. */
+:root{
+  --bg:#f3f5fa; --surface:#ffffff; --ink:#111a2e; --muted:#586280; --line:#dbe0ec;
+  --accent:#1f4fd8; --accent-ink:#ffffff; --accent-soft:#e4ebff;
+  --ok:#157347; --ok-soft:#dff3e7; --warn:#9a6700; --warn-soft:#fbefcf; --bad:#b42318; --bad-soft:#fde4e1;
+  --inst:#e4ebff; --remote:#fbefcf; --off:#e8eaf0; --hol:#fbe1e8; --exam:#e9e3fb; --nodata:transparent;
+  --font-head:'Space Grotesk','Segoe UI',system-ui,sans-serif;
+  --font-body:'Inter','Segoe UI',system-ui,sans-serif;
+  --font-num:ui-monospace,'SF Mono','Cascadia Mono',Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0c1323; --surface:#141d34; --ink:#e8ecf7; --muted:#9aa5c0; --line:#27334f;
+    --accent:#7ea3ff; --accent-ink:#0c1323; --accent-soft:#1d2a4d;
+    --ok:#5fd394; --ok-soft:#14352a; --warn:#f0c24b; --warn-soft:#3b3014; --bad:#ff8b7f; --bad-soft:#401d1a;
+    --inst:#1d2a4d; --remote:#3b3014; --off:#1b2338; --hol:#3d1d28; --exam:#2b2250; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0c1323; --surface:#141d34; --ink:#e8ecf7; --muted:#9aa5c0; --line:#27334f;
+  --accent:#7ea3ff; --accent-ink:#0c1323; --accent-soft:#1d2a4d;
+  --ok:#5fd394; --ok-soft:#14352a; --warn:#f0c24b; --warn-soft:#3b3014; --bad:#ff8b7f; --bad-soft:#401d1a;
+  --inst:#1d2a4d; --remote:#3b3014; --off:#1b2338; --hol:#3d1d28; --exam:#2b2250; color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+.wrap{max-width:1040px;margin:0 auto}
+h1,h2,h3{font-family:var(--font-head);margin:0;text-wrap:balance;letter-spacing:-.01em}
+h1{font-size:clamp(1.6rem,4vw,2.2rem);line-height:1.15}
+h2{font-size:1.2rem}
+h3{font-size:1rem}
+p{margin:0}
+.sub{color:var(--muted);margin-top:6px;max-width:62ch}
+.tabs{display:flex;gap:6px;margin:20px 0 18px;flex-wrap:wrap}
+.tabs a{padding:8px 14px;border:1px solid var(--line);border-radius:8px;color:var(--muted);text-decoration:none;font-weight:500;background:var(--surface)}
+.tabs a[aria-current="page"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px;margin-bottom:16px;min-width:0}
+.panel>h2{margin-bottom:4px}
+.hint{color:var(--muted);font-size:.9rem}
+.row{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field label{font-size:.78rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+input,select,textarea{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:8px 10px;min-width:0}
+input[type=number]{font-family:var(--font-num);width:84px}
+button{font:inherit;font-weight:600;cursor:pointer;border-radius:7px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:8px 14px}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+button.ghost{color:var(--muted);font-weight:500}
+.scroll{overflow-x:auto;margin-top:12px;border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:.74rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600;background:var(--bg)}
+tr:last-child td{border-bottom:0}
+td input[type=text]{width:260px}
+td input[type=number]{width:62px;padding:6px 8px}
+.num{font-family:var(--font-num)}
+.chip{display:inline-block;padding:2px 10px;border-radius:99px;font-size:.8rem;font-weight:600}
+.chip.ok{background:var(--ok-soft);color:var(--ok)}
+.chip.warn{background:var(--warn-soft);color:var(--warn)}
+.chip.bad{background:var(--bad-soft);color:var(--bad)}
+.pct-ok{color:var(--ok)} .pct-bad{color:var(--bad)}
+.notice{border:1px solid var(--line);border-left:4px solid var(--warn);background:var(--warn-soft);color:var(--ink);padding:10px 14px;border-radius:8px;margin-bottom:16px;font-size:.92rem}
+.notice.info{border-left-color:var(--accent);background:var(--accent-soft)}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;align-items:center}
+.sum{display:flex;gap:10px 28px;flex-wrap:wrap;margin-top:6px}
+.sum b{font-family:var(--font-num);font-size:1.1rem}
+pre{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;overflow-x:auto;margin:10px 0 0;font-family:var(--font-num);font-size:.82rem}
+/* calendar */
+.cal-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.cal-head h2{text-align:center;flex:1}
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.dow{font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);text-align:center;font-weight:600;padding:4px 0}
+.cell{min-height:64px;padding:6px;border-radius:7px;border:1px solid var(--line);background:var(--nodata);text-align:left;display:flex;flex-direction:column;justify-content:space-between;gap:2px;font-weight:400}
+.cell .d{font-family:var(--font-num);font-weight:600;font-size:.95rem}
+.cell .l{font-size:.68rem;line-height:1.2;color:var(--muted);overflow-wrap:anywhere}
+.cell.i{background:var(--inst);border-color:transparent}
+.cell.r{background:var(--remote);border-color:transparent}
+.cell.n{background:var(--off);border-color:transparent}
+.cell.h{background:var(--hol);border-color:transparent}
+.cell.x{background:var(--exam);border-color:transparent}
+.cell.u{border-style:dashed}
+.cell.blank{border:0;background:none;pointer-events:none}
+.cell.sel{outline:2px solid var(--accent);outline-offset:1px}
+.cell.today .d::after{content:" •";color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:8px 16px;margin-top:12px;font-size:.82rem;color:var(--muted)}
+.legend span::before{content:"";display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-2px;border:1px solid var(--line)}
+.legend .i::before{background:var(--inst)} .legend .r::before{background:var(--remote)} .legend .n::before{background:var(--off)} .legend .u::before{border-style:dashed} .legend .h::before{background:var(--hol)} .legend .x::before{background:var(--exam)}
+.detail{margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+details summary{cursor:pointer;font-weight:600}
+textarea{width:100%;min-height:120px;font-family:var(--font-num);font-size:.82rem}
+.quick-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
+.big{font-family:var(--font-head);font-size:2.4rem;font-weight:700;line-height:1.1}
+.res{margin-top:14px;display:grid;gap:6px}
+[hidden]{display:none!important}
+@media (max-width:560px){.cell{min-height:54px;padding:4px}.cell .l{display:none}.panel{padding:14px}}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>VIT Bhopal Attendance Planner</h1>
+  <p class="sub">See which days have classes, enter your timetable, and find out how many classes you can still skip and stay at your target attendance.</p>
+  <nav class="tabs" aria-label="Sections">
+    <a href="#planner" data-tab="planner">Planner</a>
+    <a href="#calendar" data-tab="calendar">Calendar</a>
+    <a href="#quick" data-tab="quick">Quick calculator</a>
+  </nav>
+
+  <!-- PLANNER -->
+  <section id="view-planner" hidden>
+    <div class="notice info" id="example-note">These rows are sample data. Edit them, or upload your timetable as a CSV, to see your own numbers.</div>
+    <div class="panel">
+      <h2>Your window</h2>
+      <p class="hint">Classes are counted from the academic calendar between these two dates. The semester's last instructional day is 9 Mar 2027.</p>
+      <div class="row" style="margin-top:12px">
+        <div class="field"><label for="target">Target %</label><input id="target" type="number" min="1" max="100" step="1" value="75"></div>
+        <div class="field"><label for="from">Count from</label><input id="from" type="date"></div>
+        <div class="field"><label for="to">Count until</label><input id="to" type="date"></div>
+        <div class="field"><label for="assume" style="text-transform:none;letter-spacing:0;font-size:.9rem;color:var(--ink);font-weight:500"><input id="assume" type="checkbox" style="width:auto"> Treat dates missing from the calendar as Mon–Fri classes</label></div>
+      </div>
+      <div id="win-note" class="hint" style="margin-top:10px"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Timetable and attendance so far</h2>
+      <p class="hint">Paste your VTOP timetable or registered course list, then enter how many classes have been held and how many you attended. You can also edit the rows by hand. A 2-hour lab counts as 2.</p>
+      <div class="field" style="margin-top:12px"><label for="tt-paste">Paste your VTOP timetable or course list</label><textarea id="tt-paste" style="min-height:90px" placeholder="From VTOP, copy the Time Table grid or your registered course list and paste it here"></textarea></div>
+      <div class="actions"><button id="tt-read" class="primary">Read timetable</button><span class="hint" id="tt-msg"></span></div>
+      <div class="scroll"><table id="course-table"></table></div>
+      <div class="actions">
+        <button id="add-course" class="primary">Add course</button>
+        <label class="hint" for="csv-file" style="cursor:pointer"><span class="ghost" style="border:1px solid var(--line);border-radius:7px;padding:8px 14px;display:inline-block;color:var(--ink);font-weight:600;background:var(--surface)">Upload timetable file</span></label>
+        <input id="csv-file" type="file" accept=".csv,.html,.htm,.txt,text/csv,text/plain,text/html" hidden>
+        <button id="clear-all" class="ghost">Clear all</button>
+      </div>
+      <details style="margin-top:14px">
+        <summary>CSV format</summary>
+        <p class="hint" style="margin-top:8px">First row is the header. Held and Attended are optional. Save your timetable from Excel or Google Sheets as CSV.</p>
+        <pre>Course,Mon,Tue,Wed,Thu,Fri,Sat,Held,Attended
+CSE2001 Data Structures,1,0,1,0,1,0,38,33
+CSE2001 Lab,0,2,0,0,0,0,10,10</pre>
+      </details>
+    </div>
+
+    <div class="panel">
+      <h2>What you can skip</h2>
+      <div class="sum" id="sum"></div>
+      <div class="scroll"><table id="result-table"></table></div>
+      <p class="hint" style="margin-top:12px">Counts follow the calendar loaded on this page. Your official attendance is the one on VTOP, so confirm any borderline course with your faculty.</p>
+    </div>
+  </section>
+
+  <!-- CALENDAR -->
+  <section id="view-calendar" hidden>
+    <div class="panel">
+      <div class="cal-head">
+        <button id="prev" aria-label="Previous month">‹</button>
+        <h2 id="cal-title"></h2>
+        <button id="next" aria-label="Next month">›</button>
+      </div>
+      <div class="cal" id="cal"></div>
+      <div class="legend">
+        <span class="i">Instructional day</span>
+        <span class="r">Follows another weekday's timetable</span>
+        <span class="n">No instruction</span>
+        <span class="h">Holiday</span>
+        <span class="x">CAT / FAT exam period</span>
+        <span class="u">Not loaded yet</span>
+      </div>
+      <div class="detail" id="detail"><p class="hint">Select a date to see details.</p></div>
+    </div>
+    <div class="panel">
+      <details>
+        <summary>Add more calendar months</summary>
+        <p class="hint" style="margin:8px 0 10px">Copy a month from the VIT Bhopal academic calendar page and paste it here. Only the "General" line for each date is read. Added months are saved in this browser.</p>
+        <div class="row">
+          <div class="field"><label for="imp-month">Month</label><input id="imp-month" type="month" value="2026-12"></div>
+        </div>
+        <div class="field" style="margin-top:10px"><label for="imp-text">Pasted calendar text</label><textarea id="imp-text" placeholder="1Instructional Day - General&#10;2No Instructional Day - General(Sunday)&#10;..."></textarea></div>
+        <div class="actions"><button id="imp-go" class="primary">Add to calendar</button><button id="imp-reset" class="ghost">Remove added months</button><span class="hint" id="imp-msg"></span></div>
+      </details>
+    </div>
+  </section>
+
+  <!-- QUICK -->
+  <section id="view-quick" hidden>
+    <div class="quick-grid">
+      <div class="panel">
+        <h2>Attendance check</h2>
+        <p class="hint">Works for any single course or your overall figure.</p>
+        <div class="row" style="margin-top:12px">
+          <div class="field"><label for="q-held">Classes held</label><input id="q-held" type="number" min="0" value="40"></div>
+          <div class="field"><label for="q-att">Attended</label><input id="q-att" type="number" min="0" value="33"></div>
+          <div class="field"><label for="q-t">Target %</label><input id="q-t" type="number" min="1" max="100" value="75"></div>
+        </div>
+        <div class="res" id="q-out"></div>
+      </div>
+      <div class="panel">
+        <h2>What if</h2>
+        <p class="hint">Uses the numbers on the left. Try a stretch of upcoming classes.</p>
+        <div class="row" style="margin-top:12px">
+          <div class="field"><label for="w-n">Upcoming classes</label><input id="w-n" type="number" min="0" value="10"></div>
+          <div class="field"><label for="w-k">You attend</label><input id="w-k" type="number" min="0" value="8"></div>
+        </div>
+        <div class="res" id="w-out"></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+/*LOGIC*/
+const BASE_CAL = {
+  '2026-11-16':{t:'i',note:'First instructional day'},
+  '2026-11-17':{t:'i'},'2026-11-18':{t:'i'},'2026-11-19':{t:'i'},'2026-11-20':{t:'i'},
+  '2026-11-21':{t:'i',follow:4,remote:true,note:'Runs the Friday timetable, remote learning'},
+  '2026-11-22':{t:'n'},
+  '2026-11-23':{t:'i'},
+  '2026-11-24':{t:'i',hol:true,note:'Guru Nanak Jayanti (sectional holiday). Check whether your section has class.'},
+  '2026-11-25':{t:'i'},'2026-11-26':{t:'i'},'2026-11-27':{t:'i'},
+  '2026-11-28':{t:'n'},'2026-11-29':{t:'n'},
+  '2026-11-30':{t:'i'},
+  '2026-12-01':{"t":"i"},
+  '2026-12-02':{"t":"i"},
+  '2026-12-03':{"t":"i"},
+  '2026-12-04':{"t":"i"},
+  '2026-12-05':{"t":"n"},
+  '2026-12-06':{"t":"n"},
+  '2026-12-07':{"t":"i"},
+  '2026-12-08':{"t":"i"},
+  '2026-12-09':{"t":"i"},
+  '2026-12-10':{"t":"i"},
+  '2026-12-11':{"t":"i"},
+  '2026-12-12':{"t":"i","note":"Friday Instructional Day – Remote Learning","follow":4,"remote":true},
+  '2026-12-13':{"t":"n"},
+  '2026-12-14':{"t":"i"},
+  '2026-12-15':{"t":"x","lab":"CAT-1","note":"Continuous Assessment Test-1 (CAT-1)"},
+  '2026-12-16':{"t":"x","lab":"CAT-1","note":"Continuous Assessment Test-1 (CAT-1)"},
+  '2026-12-17':{"t":"x","lab":"CAT-1","note":"Continuous Assessment Test-1 (CAT-1)"},
+  '2026-12-18':{"t":"x","lab":"CAT-1","note":"Continuous Assessment Test-1 (CAT-1)"},
+  '2026-12-19':{"t":"x","lab":"CAT-1","note":"Continuous Assessment Test-1 (CAT-1)"},
+  '2026-12-20':{"t":"n"},
+  '2026-12-21':{"t":"x","lab":"CAT-1","note":"Continuous Assessment Test-1 (CAT-1)"},
+  '2026-12-22':{"t":"x","lab":"CAT-1","note":"Continuous Assessment Test-1 (CAT-1)"},
+  '2026-12-23':{"t":"x","lab":"CAT-1","note":"Continuous Assessment Test-1 (CAT-1)"},
+  '2026-12-24':{"t":"i"},
+  '2026-12-25':{"t":"h","lab":"Holiday","note":"Christmas"},
+  '2026-12-26':{"t":"n"},
+  '2026-12-27':{"t":"n"},
+  '2026-12-28':{"t":"i"},
+  '2026-12-29':{"t":"i"},
+  '2026-12-30':{"t":"i"},
+  '2026-12-31':{"t":"i"},
+  '2027-01-01':{"t":"h","lab":"Holiday","note":"New Year (Holiday)"},
+  '2027-01-02':{"t":"n"},
+  '2027-01-03':{"t":"n"},
+  '2027-01-04':{"t":"i"},
+  '2027-01-05':{"t":"i","note":"Last date for CAT-1 scripts Eval/Show/Entry"},
+  '2027-01-06':{"t":"i"},
+  '2027-01-07':{"t":"i"},
+  '2027-01-08':{"t":"i"},
+  '2027-01-09':{"t":"n"},
+  '2027-01-10':{"t":"n"},
+  '2027-01-11':{"t":"h","lab":"Holiday","note":"Pongal Break (Holiday)"},
+  '2027-01-12':{"t":"h","lab":"Holiday","note":"Pongal Break (Holiday)"},
+  '2027-01-13':{"t":"h","lab":"Holiday","note":"Pongal Break (Holiday)"},
+  '2027-01-14':{"t":"h","lab":"Holiday","note":"Pongal Break (Holiday)"},
+  '2027-01-15':{"t":"h","lab":"Holiday","note":"Pongal Break (Holiday)"},
+  '2027-01-16':{"t":"n"},
+  '2027-01-17':{"t":"n"},
+  '2027-01-18':{"t":"i"},
+  '2027-01-19':{"t":"i"},
+  '2027-01-20':{"t":"i"},
+  '2027-01-21':{"t":"i"},
+  '2027-01-22':{"t":"i"},
+  '2027-01-23':{"t":"n"},
+  '2027-01-24':{"t":"n"},
+  '2027-01-25':{"t":"i"},
+  '2027-01-26':{"t":"h","lab":"Holiday","note":"Republic Day (Holiday)"},
+  '2027-01-27':{"t":"i"},
+  '2027-01-28':{"t":"i"},
+  '2027-01-29':{"t":"i"},
+  '2027-01-30':{"t":"n"},
+  '2027-01-31':{"t":"n"},
+  '2027-02-01':{"t":"h","lab":"Holiday","note":"Holiday"},
+  '2027-02-02':{"t":"i"},
+  '2027-02-03':{"t":"i"},
+  '2027-02-04':{"t":"i"},
+  '2027-02-05':{"t":"x","lab":"CAT-2","note":"Continuous Assessment Test-2 (CAT-2)"},
+  '2027-02-06':{"t":"x","lab":"CAT-2","note":"Continuous Assessment Test-2 (CAT-2)"},
+  '2027-02-07':{"t":"n"},
+  '2027-02-08':{"t":"x","lab":"CAT-2","note":"Continuous Assessment Test-2 (CAT-2)"},
+  '2027-02-09':{"t":"x","lab":"CAT-2","note":"Continuous Assessment Test-2 (CAT-2)"},
+  '2027-02-10':{"t":"x","lab":"CAT-2","note":"Continuous Assessment Test-2 (CAT-2)"},
+  '2027-02-11':{"t":"x","lab":"CAT-2","note":"Continuous Assessment Test-2 (CAT-2)"},
+  '2027-02-12':{"t":"x","lab":"CAT-2","note":"Continuous Assessment Test-2 (CAT-2)"},
+  '2027-02-13':{"t":"x","lab":"CAT-2","note":"Continuous Assessment Test-2 (CAT-2)"},
+  '2027-02-14':{"t":"n"},
+  '2027-02-15':{"t":"i"},
+  '2027-02-16':{"t":"i"},
+  '2027-02-17':{"t":"i"},
+  '2027-02-18':{"t":"n","note":"Advitya '27 – Techno Cultural Fest (Tentative)"},
+  '2027-02-19':{"t":"n","note":"Advitya '27 – Techno Cultural Fest (Tentative)"},
+  '2027-02-20':{"t":"n","note":"Advitya '27 – Techno Cultural Fest (Tentative)"},
+  '2027-02-21':{"t":"n"},
+  '2027-02-22':{"t":"i"},
+  '2027-02-23':{"t":"i"},
+  '2027-02-24':{"t":"i"},
+  '2027-02-25':{"t":"i"},
+  '2027-02-26':{"t":"i","note":"Last date for CAT-2 scripts Eval/Show/Entry"},
+  '2027-02-27':{"t":"n"},
+  '2027-02-28':{"t":"n"},
+  '2027-03-01':{"t":"i"},
+  '2027-03-02':{"t":"i","note":"Last date for Course Withdraw"},
+  '2027-03-03':{"t":"i"},
+  '2027-03-04':{"t":"i"},
+  '2027-03-05':{"t":"i","note":"Friday Instructional Day – Remote Learning","follow":4,"remote":true},
+  '2027-03-06':{"t":"h","lab":"Holiday","note":"Maha Shivratri (Holiday)"},
+  '2027-03-07':{"t":"n"},
+  '2027-03-08':{"t":"i"},
+  '2027-03-09':{"t":"i","note":"Last Instructional Day"},
+  '2027-03-10':{"t":"h","lab":"Holiday","note":"Eid ul-Fitr (Ramzan) *"},
+  '2027-03-11':{"t":"x","lab":"FAT","note":"Term End Examinations -CAM - Foil Card Generation"},
+  '2027-03-12':{"t":"x","lab":"FAT","note":"Term End Examinations"},
+  '2027-03-13':{"t":"x","lab":"FAT","note":"Term End Examinations"},
+  '2027-03-14':{"t":"n"},
+  '2027-03-15':{"t":"x","lab":"FAT","note":"Term End Examinations"},
+  '2027-03-16':{"t":"x","lab":"FAT","note":"Term End Examinations"},
+  '2027-03-17':{"t":"x","lab":"FAT","note":"Term End Examinations"},
+  '2027-03-18':{"t":"x","lab":"FAT","note":"Term End Examinations"},
+  '2027-03-19':{"t":"x","lab":"FAT","note":"Term End Examinations"},
+  '2027-03-20':{"t":"x","lab":"FAT","note":"Term End Examinations"},
+  '2027-03-21':{"t":"n"},
+  '2027-03-22':{"t":"h","lab":"Holiday","note":"Holi (Holiday)"},
+  '2027-03-23':{"t":"x","lab":"FAT","note":"Term End Examinations"},
+  '2027-03-24':{"t":"x","lab":"FAT","note":"Term End Examinations"},
+  '2027-03-25':{"t":"x","lab":"FAT","note":"Term End Examinations"},
+  '2027-03-26':{"t":"n","note":"Good Friday (Sectional Holiday)"},
+  '2027-03-27':{"t":"x","lab":"FAT","note":"Term End Examinations"},
+  '2027-03-28':{"t":"n"},
+  '2027-03-29':{"t":"x","lab":"FAT","note":"Term End Examinations"},
+  '2027-03-30':{"t":"x","lab":"FAT","note":"Term End Examinations"},
+  '2027-03-31':{"t":"x","lab":"FAT","note":"Term End Examinations"}
+};
+const pad=n=>String(n).padStart(2,'0');
+function toIso(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
+function parseIso(s){const [y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d);}
+function wIdx(d){return (d.getDay()+6)%7;} // Mon=0 .. Sun=6
+function dayInfo(s,cal,ov,assume){
+  const w=wIdx(parseIso(s)), e=cal[s], o=ov[s];
+  let inst=false, follow=null;
+  if(e){inst=e.t==='i'; if(e.follow!=null) follow=e.follow;}
+  else if(assume && w<5){inst=true;}
+  if(o==='held') inst=true; else if(o==='off') inst=false;
+  return {known:!!e, inst, tt:follow!=null?follow:w, e, o, assumed:!e&&inst&&o!=='held'};
+}
+function classesOn(c,info){ if(!info.inst||info.tt>5) return 0; return Number(c.d[info.tt])||0; }
+function countWindow(courses,from,to,cal,ov,assume){
+  const rem=courses.map(()=>0); let days=0, skipped=0, assumed=0;
+  if(!from||!to||from>to) return {rem,days,skipped,assumed};
+  for(let d=parseIso(from), end=parseIso(to); d<=end; d.setDate(d.getDate()+1)){
+    const s=toIso(d), info=dayInfo(s,cal,ov,assume);
+    if(!info.known && !info.inst){ if(wIdx(d)<5) skipped++; continue; }
+    if(!info.inst) continue;
+    days++; if(info.assumed) assumed++;
+    courses.forEach((c,i)=>{rem[i]+=classesOn(c,info);});
+  }
+  return {rem,days,skipped,assumed};
+}
+function plan(held,att,rem,target){
+  const t=target/100, total=held+rem;
+  const needTotal=Math.ceil(t*total-1e-9);
+  const need=Math.max(0,needTotal-att);
+  const reachable=need<=rem;
+  return {need,skip:reachable?rem-need:0,reachable,
+    finalAll:total?(att+rem)/total*100:100, now:held?att/held*100:100};
+}
+function quick(held,att,target){
+  const t=target/100, now=held?att/held*100:100;
+  if(now>=target-1e-9) return {now,ok:true,skip:Math.max(0,Math.floor(att/t-held+1e-9))};
+  if(t>=1) return {now,ok:false,need:Infinity};
+  return {now,ok:false,need:Math.ceil((t*held-att)/(1-t)-1e-9)};
+}
+function classifyLabel(label){
+  const l=label.toLowerCase().replace(/\s+/g,' ');
+  if(l.startsWith('no instructional')) return {t:'n'};
+  if(l.startsWith('instructional')) return {t:'i'};
+  if(l.startsWith('holiday')) return {t:'h',lab:'Holiday'};
+  if(l.startsWith('final')) return {t:'x',lab:'FAT'};
+  const m=l.match(/cat\s*-\s*([ivx]+)/), r={i:1,ii:2,iii:3,iv:4};
+  return {t:'x',lab:'CAT-'+((m&&r[m[1]])||'')};
+}
+function cleanNote(rest){
+  let s=(rest||'').trim(); if(!s.startsWith('(')) return '';
+  s=s.slice(1).trim();
+  const o=(s.match(/\(/g)||[]).length, c=(s.match(/\)/g)||[]).length;
+  if(s.endsWith(')') && c>o) s=s.slice(0,-1);
+  return s.trim();
+}
+function parseCalendarText(text,ym){
+  const out={}; let [y,m]=ym.split('-').map(Number);
+  const names=['january','february','march','april','may','june','july','august','september','october','november','december'];
+  const wd=['monday','tuesday','wednesday','thursday','friday','saturday'];
+  const lines=text.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+  lines.forEach(l=>{const k=names.indexOf(l.toLowerCase()); if(k>=0) m=k+1;});
+  const TYPES='No Instructional Day|Instructional Day|Holiday|CAT\\s*-\\s*[IVX]+|Final Assessment Test';
+  const numbered=new RegExp('^(\\d{1,2})\\s*('+TYPES+')\\s*-\\s*General\\b(?!\\s*(?:BArch|PG))(.*)$','i');
+  const barch=new RegExp('^('+TYPES+')\\s*-\\s*General\\s+BArch(.*)$','i');
+  let seen=false, n=0;
+  const put=(day,label,rest)=>{
+    if(day<1||day>31) return;
+    const e=classifyLabel(label), note=cleanNote(rest);
+    if(note) e.note=note;
+    if(e.t==='i'){
+      const fm=note.match(/(monday|tuesday|wednesday|thursday|friday|saturday)\s+instructional/i);
+      if(fm) e.follow=wd.indexOf(fm[1].toLowerCase());
+      if(/remote/i.test(note)) e.remote=true;
+      if(/holiday/i.test(note)) e.hol=true;
+    }
+    out[y+'-'+pad(m)+'-'+pad(day)]=e; n++;
+  };
+  lines.forEach(l=>{
+    let mt=l.match(numbered);
+    if(mt){seen=true; put(Number(mt[1]),mt[2],mt[3]); return;}
+    if(!seen){mt=l.match(barch); if(mt){seen=true; put(1,mt[1],mt[2]);}}
+  });
+  return {out,n,y,m};
+}
+function parseCsv(text){
+  const rows=text.split(/\r?\n/).map(r=>r.trim()).filter(Boolean).map(r=>r.split(',').map(c=>c.trim()));
+  if(!rows.length) return [];
+  let map={name:0,d:[1,2,3,4,5,6],held:7,att:8}, start=0;
+  const h=rows[0].map(c=>c.toLowerCase());
+  if(h.some(c=>/course|subject/.test(c))){
+    start=1;
+    const f=k=>h.findIndex(c=>c.startsWith(k));
+    map={name:Math.max(0,h.findIndex(c=>/course|subject/.test(c))),
+      d:['mon','tue','wed','thu','fri','sat'].map(f),held:f('held'),att:h.findIndex(c=>c.startsWith('att'))};
+  }
+  return rows.slice(start).map(r=>({
+    name:r[map.name]||'Course',
+    d:map.d.map(i=>i>=0?Math.max(0,parseInt(r[i])||0):0),
+    held:map.held>=0?Math.max(0,parseInt(r[map.held])||0):0,
+    att:map.att>=0?Math.max(0,parseInt(r[map.att])||0):0
+  }));
+}
+function parseVtop(text){
+  const t=String(text).replace(/\r/g,'');
+  const re=/^[ \t]*(MON|TUE|WED|THU|FRI|SAT)\b/gim, names=['MON','TUE','WED','THU','FRI','SAT'];
+  const marks=[]; let m;
+  while((m=re.exec(t))) marks.push({i:m.index,d:names.indexOf(m[1].toUpperCase()),len:m[0].length});
+  const byCode={};
+  marks.forEach((mk,k)=>{
+    const seg=t.slice(mk.i+mk.len,k+1<marks.length?marks[k+1].i:t.length).replace(/\s+/g,' ');
+    const tok=/(?:^|[^A-Z0-9+])([A-Z]{1,3}\d{1,2}(?:\+[A-Z]{1,3}\d{1,2})*)-([A-Z]{2,5}\d{3,4}[A-Z]?)-/g;
+    let x;
+    while((x=tok.exec(seg))){
+      const code=x[2], n=x[1].split('+').length;
+      (byCode[code]=byCode[code]||[0,0,0,0,0,0])[mk.d]+=n;
+    }
+  });
+  return Object.keys(byCode).map(code=>({name:code,d:byCode[code],held:0,att:0}));
+}
+const SLOT_DAY={};
+[['A11','B11','C11','A21','A14','B21','C21'],
+ ['D11','E11','F11','D21','E14','E21','F21'],
+ ['A12','B12','C12','A22','B14','B22','A24'],
+ ['D12','E12','F12','D22','F14','E22','F22'],
+ ['A13','B13','C13','A23','C14','B23','B24'],
+ ['D13','E13','F13','D23','D14','D24','E23']].forEach((row,d)=>row.forEach(s=>{SLOT_DAY[s]=d;}));
+function parseCourseList(text){
+  const t=String(text).replace(/\r/g,'');
+  const head=/^[ \t]*([A-Z]{2,5}\d{3,4}[A-Z]?)[ \t]+-[ \t]+(.+?)[ \t]*$/gm;
+  const marks=[]; let m;
+  while((m=head.exec(t))) marks.push({i:m.index,len:m[0].length,code:m[1],title:m[2].trim()});
+  return marks.map((mk,k)=>{
+    const blk=t.slice(mk.i+mk.len,k+1<marks.length?marks[k+1].i:t.length);
+    const cid=blk.search(/\bBL\d{8,}\b/);
+    const after=cid>=0?blk.slice(cid):blk;
+    const sm=after.match(/(?:^|[^A-Z0-9])([A-Z]{1,3}\d{1,2}(?:\+[A-Z]{1,3}\d{1,2})*)[ \t\r\n]*-/);
+    const d=[0,0,0,0,0,0], unknown=[];
+    if(sm) sm[1].split('+').forEach(s=>{const k=SLOT_DAY[s]; if(k==null) unknown.push(s); else d[k]++;});
+    return {code:mk.code,name:mk.code+' '+mk.title,d,unknown,hasSlot:!!sm};
+  }).filter(c=>c.hasSlot);
+}
+/*ENDLOGIC*/
+
+/* ---------- UI ---------- */
+const KEY='vitb-attendance-v1';
+const DAYS=['Mon','Tue','Wed','Thu','Fri','Sat'];
+const todayIso=toIso(new Date());
+let uid=1;
+const sample=()=>[
+  {id:uid++,name:'CSD4001',d:[1,0,1,0,1,0],held:3,att:3},
+  {id:uid++,name:'CSE4001',d:[1,1,0,1,0,0],held:3,att:2},
+  {id:uid++,name:'MAT2003',d:[0,1,0,1,0,0],held:2,att:2},
+  {id:uid++,name:'CSE3006',d:[0,1,0,1,1,0],held:3,att:3},
+  {id:uid++,name:'PLA1004',d:[0,1,1,0,0,0],held:2,att:1},
+  {id:uid++,name:'CSD4002',d:[0,1,1,1,0,0],held:3,att:3},
+  {id:uid++,name:'CSE3016',d:[0,1,1,0,1,0],held:3,att:2}
+];
+let S={target:75,from:todayIso,to:'2027-03-09',assume:false,courses:sample(),ov:{},extra:{},example:true};
+try{const r=localStorage.getItem(KEY); if(r){const p=JSON.parse(r); S=Object.assign(S,p); uid=Math.max(1,...S.courses.map(c=>c.id||0))+1;}}catch(e){}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const cal=()=>Object.assign({},BASE_CAL,S.extra);
+const lastLoaded=()=>Object.keys(cal()).sort().pop();
+const fmt=iso=>parseIso(iso).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
+
+/* tabs */
+function showTab(){
+  const t=['planner','calendar','quick'].includes(location.hash.slice(1))?location.hash.slice(1):'planner';
+  ['planner','calendar','quick'].forEach(k=>{$('view-'+k).hidden=k!==t;});
+  document.querySelectorAll('.tabs a').forEach(a=>{if(a.dataset.tab===t)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});
+}
+addEventListener('hashchange',showTab);
+
+/* planner */
+function renderCourses(){
+  const head='<tr><th>Course</th>'+DAYS.map(d=>'<th>'+d+'</th>').join('')+'<th>Held</th><th>Attended</th><th></th></tr>';
+  const rows=S.courses.map(c=>'<tr data-id="'+c.id+'"><td><input type="text" data-f="name" aria-label="Course name" value="'+esc(c.name)+'"></td>'
+    +c.d.map((v,i)=>'<td><input type="number" min="0" max="9" data-f="d'+i+'" aria-label="'+DAYS[i]+' classes" value="'+v+'"></td>').join('')
+    +'<td><input type="number" min="0" data-f="held" aria-label="Classes held" value="'+c.held+'"></td>'
+    +'<td><input type="number" min="0" data-f="att" aria-label="Classes attended" value="'+c.att+'"></td>'
+    +'<td><button class="ghost" data-del="'+c.id+'" aria-label="Remove course">Remove</button></td></tr>').join('');
+  $('course-table').innerHTML=head+rows;
+}
+function renderResults(){
+  const C=cal(), w=countWindow(S.courses,S.from,S.to,C,S.ov,S.assume);
+  $('example-note').hidden=!S.example;
+  const notes=[];
+  if(S.to>lastLoaded()&&!S.assume) notes.push('The calendar on this page ends on '+fmt(lastLoaded())+'. Days after that are not counted. Add more months in the Calendar tab, or tick the Mon–Fri option above.');
+  if(S.assume&&w.assumed) notes.push(w.assumed+' day(s) in this window are assumed to be Mon–Fri classes because they are not in the calendar yet.');
+  if(w.skipped) notes.push(w.skipped+' weekday(s) in this window are missing from the calendar and not counted.');
+  $('win-note').textContent=notes.join(' ');
+  $('sum').innerHTML='<span>Instructional days in window <b>'+w.days+'</b></span><span>Target <b>'+S.target+'%</b></span>';
+  const head='<tr><th>Course</th><th>Now</th><th>Classes left</th><th>Must attend</th><th>Can skip</th><th>If you attend all</th><th>Status</th></tr>';
+  const rows=S.courses.map((c,i)=>{
+    const p=plan(c.held,c.att,w.rem[i],S.target);
+    let chip,txt;
+    if(!p.reachable){chip='bad';txt='Out of reach';} else if(p.skip<=2){chip='warn';txt='Tight';} else {chip='ok';txt='Safe';}
+    return '<tr><td>'+esc(c.name)+'</td><td class="num '+(p.now>=S.target?'pct-ok':'pct-bad')+'">'+p.now.toFixed(1)+'%</td>'
+      +'<td class="num">'+w.rem[i]+'</td><td class="num">'+(p.reachable?p.need:'all '+w.rem[i]+' not enough')+'</td>'
+      +'<td class="num"><b>'+p.skip+'</b></td><td class="num">'+p.finalAll.toFixed(1)+'%</td><td><span class="chip '+chip+'">'+txt+'</span></td></tr>';
+  }).join('');
+  $('result-table').innerHTML=head+(rows||'<tr><td colspan="7" class="hint">Add a course to see results.</td></tr>');
+}
+$('course-table').addEventListener('input',e=>{
+  const tr=e.target.closest('tr[data-id]'); if(!tr) return;
+  const c=S.courses.find(x=>x.id==tr.dataset.id), f=e.target.dataset.f; if(!c||!f) return;
+  if(f==='name') c.name=e.target.value;
+  else{const v=Math.max(0,parseInt(e.target.value)||0); if(f[0]==='d'&&f.length===2) c.d[+f[1]]=v; else c[f]=v;}
+  S.example=false; save(); renderResults();
+});
+$('course-table').addEventListener('click',e=>{
+  const id=e.target.dataset.del; if(!id) return;
+  S.courses=S.courses.filter(c=>c.id!=id); S.example=false; save(); renderCourses(); renderResults();
+});
+$('add-course').onclick=()=>{S.courses.push({id:uid++,name:'New course',d:[0,0,0,0,0,0],held:0,att:0}); S.example=false; save(); renderCourses(); renderResults();};
+$('clear-all').onclick=()=>{S.courses=[]; S.example=false; save(); renderCourses(); renderResults();};
+function htmlToText(src){
+  const doc=new DOMParser().parseFromString(src,'text/html');
+  const rows=[...doc.querySelectorAll('tr')];
+  if(!rows.length) return doc.body?doc.body.textContent:'';
+  return rows.map(r=>[...r.children].map(c=>c.textContent.replace(/\s+/g,' ').trim()).join('\t')).join('\n');
+}
+function importTimetable(text){
+  const grid=parseVtop(text), cl=parseCourseList(text);
+  const names={}; cl.forEach(c=>{names[c.code]=c.name;});
+  let list=grid.length
+    ? grid.map(c=>({name:names[c.name]||c.name,d:c.d,held:0,att:0}))
+    : cl.map(c=>({name:c.name,d:c.d,held:0,att:0}));
+  if(!list.length && /course|subject/i.test(String(text).split(/\r?\n/)[0]||'')) list=parseCsv(text);
+  if(!list.length){$('tt-msg').textContent='No courses found. Paste the whole timetable grid or your registered course list from VTOP, or use the CSV format below.';return;}
+  const unk=grid.length?[]:[...new Set(cl.flatMap(c=>c.unknown))];
+  const codeOf=n=>String(n).split(/\s/)[0];
+  const old={}; if(!S.example) S.courses.forEach(c=>{old[codeOf(c.name)]=c;});
+  S.courses=list.map(c=>{const o=old[codeOf(c.name)]; return Object.assign({id:uid++},c,o?{held:o.held,att:o.att}:{});});
+  S.example=false; save(); renderCourses(); renderResults();
+  $('tt-msg').textContent='Found '+list.length+' course'+(list.length===1?'':'s')+'. Now enter classes held and attended for each.'
+    +(unk.length?' Slots not recognized: '+unk.join(', ')+'. Add those classes by hand.':'');
+}
+$('tt-read').onclick=()=>importTimetable($('tt-paste').value);
+$('csv-file').addEventListener('change',e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{let t=String(r.result); if(/<table|<html/i.test(t)) t=htmlToText(t); importTimetable(t);};
+  r.readAsText(f); e.target.value='';
+});
+$('target').addEventListener('input',e=>{S.target=Math.min(100,Math.max(1,parseFloat(e.target.value)||75)); save(); renderResults();});
+$('from').addEventListener('input',e=>{if(e.target.value){S.from=e.target.value; save(); renderResults();}});
+$('to').addEventListener('input',e=>{if(e.target.value){S.to=e.target.value; save(); renderResults();}});
+$('assume').addEventListener('change',e=>{S.assume=e.target.checked; save(); renderResults(); renderCal();});
+
+/* calendar */
+let cm={y:2026,m:10}, selDate=null;
+function renderCal(){
+  const C=cal(), first=new Date(cm.y,cm.m,1), n=new Date(cm.y,cm.m+1,0).getDate(), lead=wIdx(first);
+  $('cal-title').textContent=first.toLocaleDateString('en-IN',{month:'long',year:'numeric'});
+  let h=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d=>'<div class="dow">'+d+'</div>').join('');
+  for(let i=0;i<lead;i++) h+='<div class="cell blank"></div>';
+  for(let d=1;d<=n;d++){
+    const s=cm.y+'-'+pad(cm.m+1)+'-'+pad(d), info=dayInfo(s,C,S.ov,S.assume);
+    let cls='u',lab='';
+    if(info.known||info.o){
+      if(info.inst){ cls=info.e&&info.e.follow!=null?'r':'i'; lab=info.e&&info.e.follow!=null?DAYS[info.e.follow]+' timetable':'Class'; if(info.e&&info.e.hol) lab='Class, sectional holiday'; }
+      else {const tt=info.e&&info.e.t; if(tt==='h'){cls='h';lab='Holiday';} else if(tt==='x'){cls='x';lab=info.e.lab||'Exam';} else {cls='n';lab='No class';}}
+    } else if(info.inst){cls='i'; lab='Assumed class';}
+    if(info.o) lab+=' (your edit)';
+    h+='<button class="cell '+cls+(s===selDate?' sel':'')+(s===todayIso?' today':'')+'" data-date="'+s+'"><span class="d">'+d+'</span><span class="l">'+lab+'</span></button>';
+  }
+  $('cal').innerHTML=h;
+}
+function renderDetail(){
+  if(!selDate){$('detail').innerHTML='<p class="hint">Select a date to see details.</p>';return;}
+  const info=dayInfo(selDate,cal(),S.ov,S.assume), d=parseIso(selDate);
+  let st; if(info.inst) st='Instructional day'; else if(info.known){const tt=info.e&&info.e.t; st=tt==='h'?'Holiday':(tt==='x'?'Exam period, not counted as class days':'No instruction');} else st='Not in the loaded calendar';
+  if(info.inst&&info.tt!==wIdx(d)) st+=' (follows the '+DAYS[info.tt]+' timetable)';
+  $('detail').innerHTML='<h3>'+d.toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'})+'</h3>'
+    +'<p style="margin-top:4px">'+st+'</p>'+(info.e&&info.e.note?'<p class="hint">'+esc(info.e.note)+'</p>':'')
+    +'<div class="actions"><button data-ov="held">My section has class</button><button data-ov="off">My section has no class</button>'+(info.o?'<button class="ghost" data-ov="">Reset my edit</button>':'')+'</div>';
+}
+$('cal').addEventListener('click',e=>{const b=e.target.closest('[data-date]'); if(!b) return; selDate=b.dataset.date; renderCal(); renderDetail();});
+$('detail').addEventListener('click',e=>{
+  const b=e.target.closest('[data-ov]'); if(!b||!selDate) return;
+  if(b.dataset.ov) S.ov[selDate]=b.dataset.ov; else delete S.ov[selDate];
+  save(); renderCal(); renderDetail(); renderResults();
+});
+$('prev').onclick=()=>{cm.m--; if(cm.m<0){cm.m=11;cm.y--;} renderCal();};
+$('next').onclick=()=>{cm.m++; if(cm.m>11){cm.m=0;cm.y++;} renderCal();};
+$('imp-go').onclick=()=>{
+  const r=parseCalendarText($('imp-text').value,$('imp-month').value||'2026-12');
+  if(!r.n){$('imp-msg').textContent='No dates found. Paste lines like "16Instructional Day - General".';return;}
+  Object.assign(S.extra,r.out); save();
+  $('imp-msg').textContent='Added '+r.n+' days for '+new Date(r.y,r.m-1,1).toLocaleDateString('en-IN',{month:'long',year:'numeric'})+'.';
+  cm={y:r.y,m:r.m-1}; renderCal(); renderResults();
+};
+$('imp-reset').onclick=()=>{S.extra={}; save(); $('imp-msg').textContent='Removed added months.'; renderCal(); renderResults();};
+
+/* quick */
+function renderQuick(){
+  const h=Math.max(0,parseInt($('q-held').value)||0), a=Math.min(h,Math.max(0,parseInt($('q-att').value)||0)), t=Math.min(100,Math.max(1,parseFloat($('q-t').value)||75));
+  const q=quick(h,a,t); let lines='<div class="big '+(q.ok?'pct-ok':'pct-bad')+'">'+q.now.toFixed(1)+'%</div>';
+  if(q.ok) lines+='<p>You are above '+t+'%. You can miss <b>'+q.skip+'</b> more class'+(q.skip===1?'':'es')+' in a row and stay at or above it.</p>';
+  else lines+='<p>You are below '+t+'%. Attend the next <b>'+(isFinite(q.need)?q.need:'every')+'</b> class'+(q.need===1?'':'es')+' in a row to get back to it.</p>';
+  $('q-out').innerHTML=lines;
+  const n=Math.max(0,parseInt($('w-n').value)||0), k=Math.min(n,Math.max(0,parseInt($('w-k').value)||0));
+  const f=(h+n)?(a+k)/(h+n)*100:100;
+  $('w-out').innerHTML='<div class="big '+(f>=t?'pct-ok':'pct-bad')+'">'+f.toFixed(1)+'%</div><p>After '+n+' more classes ('+k+' attended, '+(n-k)+' missed), you would have '+(a+k)+' of '+(h+n)+'.</p>';
+}
+['q-held','q-att','q-t','w-n','w-k'].forEach(id=>$(id).addEventListener('input',renderQuick));
+
+/* init */
+$('target').value=S.target; $('from').value=S.from; $('to').value=S.to; $('assume').checked=!!S.assume;
+showTab(); renderCourses(); renderResults(); renderCal(); renderQuick();
+</script>
+</body>
+</html>
